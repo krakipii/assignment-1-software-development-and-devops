@@ -14,10 +14,10 @@ Decision: Therefore I split the application into two domains. The Customer Manag
 Alternatives considered: I considered using Scheduling and Billing as the domains and an invoices table as the second domain. This idea was rejected because it would introduce a third area into the project. 
 Consequences: The domains have a clear boundary because of this separation. In the case that Customer Management becomes a separate service in the future there is no need for it to depend on the Lesson Management, however Lesson Management obtains student information from Customer Management, not from the database.
 
-## 3. Database schema: staff, students, tutors, and lessons only
-Date: 2026-09-29
+## 3. Linking lessons to students across the domain boundary
+Date: 2026-09-30
 Status: Decided
-Context: I needed to decide the database structure for the initial version. This is being done before the implementation of the core features of the business logic. 
-Decision: The initial database has four tables: staff, students, tutors and lessons. It does not have an invoices or payments table yet.
-Alternatives considered: I considered adding an invoices table linked to lessons so the application could also do billing. I rejected this for now because it would include a third domain as well as the two domains required for the assignment.
-Consequences: Keeping this database design makes the application easier to understand, test and document. Billing is documented as a deliberate decision to not implement.
+Context: Every lesson belongs to a student, but students belong to Customer Management and lessons to Lesson Management (ADR-2). I had to decide how the lessons table refers to a student inside the one shared SQLite file.
+Decision: lessons.student_id keeps a foreign key to students.id, but it is the only link between the tables of the two domains, and Lesson Management code never queries the students table directly. Instead it uses customers/service.py.
+Alternatives considered: I considered using student_id as a normal integer and checking in the application code whether the student exists. I chose a foreign key instead because SQLite can prevent invalid student references automatically, and I also avoided direct joins to keep Lesson Management independent from the students table structure.
+Consequences: A student cannot be deleted while they still have lessons linked to them, and the application can turn the database error into a clear message. If the domains are separated into different services later, the foreign key will be replaced by a check through the Customer Management API.
