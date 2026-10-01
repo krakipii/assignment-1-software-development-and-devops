@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<h1>{{ title }}</h1>
+
+<form class="student-form" method="post">
+  <label for="name">Student name</label>
+  <input id="name" name="name" value="{{ student.name or '' }}" required maxlength="100">
+
+  <fieldset>
+    <legend>Guardian</legend>
+    <p class="hint">Give at least an email or a phone number, so the guardian can be reached when a lesson changes.</p>
+
+    <label for="guardian_name">Name</label>
+    <input id="guardian_name" name="guardian_name" value="{{ student.guardian_name or '' }}">
+
+    <label for="guardian_email">Email</label>
+    <input id="guardian_email" name="guardian_email" type="email" value="{{ student.guardian_email or '' }}">
+
+    <label for="guardian_phone">Phone</label>
+    <input id="guardian_phone" name="guardian_phone" type="tel" value="{{ student.guardian_phone or '' }}">
+  </fieldset>
+
+  <div class="form-actions">
+    <button type="submit">{{ submit_label }}</button>
+    <a href="{{ url_for('customers.list_students') }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

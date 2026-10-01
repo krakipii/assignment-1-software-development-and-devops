@@ -1,0 +1,83 @@
+/* Tutoring Manager: an exercise-book page (white sheet, red margin line)
+   on a pale blue desk, with school-ink blue for anything you can click. */
+:root {
+  --ink: #1f3a5f;
+  --ink-dark: #142840;
+  --text: #1d2430;
+  --muted: #5b6675;
+  --sheet: #ffffff;
+  --desk: #eef2f6;
+  --rule: #d5dde6;
+  --margin-red: #d98c8c;
+  --error: #a3261c;
+  --success: #1d6b3a;
+  --serif: Charter, "Bitstream Charter", Georgia, serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: var(--text);
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--desk); line-height: 1.5; }
+a { color: var(--ink); }
+
+.site-header {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 2rem;
+  padding: 1rem 1.5rem; background: var(--ink);
+}
+.site-header a { color: #fff; text-decoration: none; }
+.site-header nav a:hover { text-decoration: underline; }
+.brand { font-family: var(--serif); font-size: 1.3rem; font-weight: 700; }
+
+main {
+  max-width: 60rem; margin: 2rem auto; padding: 1.5rem 1.5rem 2rem 2.5rem;
+  background: var(--sheet); border-left: 3px solid var(--margin-red);
+}
+h1 { font-family: var(--serif); font-size: 1.8rem; margin: 0 0 1rem; }
+
+.page-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 1rem; }
+.page-head h1 { margin: 0; }
+
+button, .button {
+  display: inline-block; font: inherit; padding: .45rem 1rem; cursor: pointer;
+  color: #fff; background: var(--ink); border: 1px solid var(--ink); border-radius: 4px;
+  text-decoration: none;
+}
+button:hover, .button:hover { background: var(--ink-dark); }
+:focus-visible { outline: 3px solid #e8a93a; outline-offset: 2px; }
+
+input {
+  font: inherit; width: 100%; max-width: 24rem; padding: .45rem .6rem;
+  border: 1px solid var(--rule); border-radius: 4px;
+}
+
+.search { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: 1rem 0 1.5rem; }
+.search input { width: auto; flex: 1 1 14rem; }
+
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: .6rem .75rem; border-bottom: 1px solid var(--rule); }
+th { font-weight: 600; color: var(--muted); }
+.actions { display: flex; justify-content: flex-end; gap: .75rem; }
+.actions form { margin: 0; }
+.link-danger { padding: 0; color: var(--error); background: none; border: none; text-decoration: underline; }
+.link-danger:hover { background: none; }
+
+.flash { margin: 0 0 1rem; padding: .6rem .9rem; border-left: 4px solid; }
+.flash-success { border-color: var(--success); background: #eaf4ee; }
+.flash-error { border-color: var(--error); background: #fbecea; }
+.empty { color: var(--muted); }
+
+.student-form label { display: block; margin: 1rem 0 .3rem; font-weight: 600; }
+fieldset { max-width: 26rem; margin: 1.5rem 0 0; padding: .5rem 1rem 1rem; border: 1px solid var(--rule); border-radius: 4px; }
+legend { padding: 0 .3rem; font-weight: 600; }
+.hint { margin: .25rem 0 0; color: var(--muted); }
+.form-actions { display: flex; align-items: center; gap: 1rem; margin-top: 1.5rem; }
+
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+@media (max-width: 40rem) {
+  main { margin: 0; padding: 1rem 1rem 1.5rem 1.5rem; }
+}
