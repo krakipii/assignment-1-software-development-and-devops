@@ -1,0 +1,4 @@
+# Coverage measures the business logic (service.py files), not the Flask
+# routes, which only pass requests through to the services (see ADR-4).
+[run]
+omit = */routes.py
