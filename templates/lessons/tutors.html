@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Tutors{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>Tutors</h1>
+  <a class="button" href="{{ url_for('lessons.create_tutor') }}">Add tutor</a>
+</div>
+
+{% if tutors %}
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Subjects</th>
+        <th>Email</th>
+        <th>Rate per hour</th>
+        <th><span class="visually-hidden">Actions</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for tutor in tutors %}
+      <tr>
+        <td>{{ tutor.name }}</td>
+        <td>{{ tutor.subjects or "Any subject" }}</td>
+        <td>{{ tutor.email or "" }}</td>
+        <td>{{ "%.2f"|format(tutor.hourly_rate) }}</td>
+        <td>
+          <div class="actions">
+            <a href="{{ url_for('lessons.list_lessons', tutor_id=tutor.id) }}">Lessons</a>
+            <a href="{{ url_for('lessons.edit_tutor', tutor_id=tutor.id) }}">Edit</a>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<p class="empty">No tutors yet. Add one before scheduling lessons.</p>
+{% endif %}
+{% endblock %}

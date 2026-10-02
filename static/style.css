@@ -1,5 +1,7 @@
-/* Tutoring Manager: an exercise-book page (white sheet, red margin line)
-   on a pale blue desk, with school-ink blue for anything you can click. */
+/* Tutoring Manager uses an exercise-book style with a white page and red margin.
+
+The background is pale blue, with blue used for clickable elements. */
+
 :root {
   --ink: #1f3a5f;
   --ink-dark: #142840;
@@ -25,11 +27,13 @@ a { color: var(--ink); }
   padding: 1rem 1.5rem; background: var(--ink);
 }
 .site-header a { color: #fff; text-decoration: none; }
-.site-header nav a:hover { text-decoration: underline; }
+.site-header nav { display: flex; gap: 1.25rem; }
+.site-header nav a:hover,
+.site-header nav a[aria-current] { text-decoration: underline; text-underline-offset: .35em; }
 .brand { font-family: var(--serif); font-size: 1.3rem; font-weight: 700; }
 
 main {
-  max-width: 60rem; margin: 2rem auto; padding: 1.5rem 1.5rem 2rem 2.5rem;
+  max-width: 68rem; margin: 2rem auto; padding: 1.5rem 1.5rem 2rem 2.5rem;
   background: var(--sheet); border-left: 3px solid var(--margin-red);
 }
 h1 { font-family: var(--serif); font-size: 1.8rem; margin: 0 0 1rem; }
@@ -45,29 +49,41 @@ button, .button {
 button:hover, .button:hover { background: var(--ink-dark); }
 :focus-visible { outline: 3px solid #e8a93a; outline-offset: 2px; }
 
-input {
+input, select {
   font: inherit; width: 100%; max-width: 24rem; padding: .45rem .6rem;
-  border: 1px solid var(--rule); border-radius: 4px;
+  border: 1px solid var(--rule); border-radius: 4px; background: #fff;
 }
 
 .search { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: 1rem 0 1.5rem; }
 .search input { width: auto; flex: 1 1 14rem; }
 
-.table-wrap { overflow-x: auto; }
+.table-wrap { position: relative; overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; }
-th, td { text-align: left; padding: .6rem .75rem; border-bottom: 1px solid var(--rule); }
+th, td { text-align: left; padding: .6rem .75rem; border-bottom: 1px solid var(--rule); white-space: nowrap; }
 th { font-weight: 600; color: var(--muted); }
 .actions { display: flex; justify-content: flex-end; gap: .75rem; }
 .actions form { margin: 0; }
-.link-danger { padding: 0; color: var(--error); background: none; border: none; text-decoration: underline; }
-.link-danger:hover { background: none; }
+.link, .link-danger { padding: 0; background: none; border: none; text-decoration: underline; }
+.link { color: var(--ink); }
+.link-danger { color: var(--error); }
+.link:hover, .link-danger:hover { background: none; }
 
 .flash { margin: 0 0 1rem; padding: .6rem .9rem; border-left: 4px solid; }
 .flash-success { border-color: var(--success); background: #eaf4ee; }
 .flash-error { border-color: var(--error); background: #fbecea; }
 .empty { color: var(--muted); }
 
-.student-form label { display: block; margin: 1rem 0 .3rem; font-weight: 600; }
+.tabs { display: flex; flex-wrap: wrap; gap: .25rem; margin: 1rem 0 1.5rem; border-bottom: 1px solid var(--rule); }
+.tabs a { margin-bottom: -1px; padding: .4rem .8rem; color: var(--muted); text-decoration: none; border-bottom: 2px solid transparent; }
+.tabs a[aria-current] { color: var(--ink); font-weight: 600; border-bottom-color: var(--ink); }
+.tabs .tabs-reset { margin-left: auto; }
+
+.status { display: inline-block; padding: .1rem .55rem; border-radius: 999px; font-size: .875rem; }
+.status-scheduled { color: var(--ink); background: #e3ebf5; }
+.status-completed { color: var(--success); background: #e3f1e8; }
+.status-cancelled { color: var(--muted); background: #eceef1; text-decoration: line-through; }
+
+.student-form label, .record-form label { display: block; margin: 1rem 0 .3rem; font-weight: 600; }
 fieldset { max-width: 26rem; margin: 1.5rem 0 0; padding: .5rem 1rem 1rem; border: 1px solid var(--rule); border-radius: 4px; }
 legend { padding: 0 .3rem; font-weight: 600; }
 .hint { margin: .25rem 0 0; color: var(--muted); }

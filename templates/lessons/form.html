@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Schedule lesson{% endblock %}
+
+{% block content %}
+<h1>Schedule lesson</h1>
+
+{% if not tutors or not students %}
+<p class="empty">
+  To schedule a lesson you need at least one
+  <a href="{{ url_for('customers.create_student') }}">student</a> and one
+  <a href="{{ url_for('lessons.create_tutor') }}">tutor</a>.
+</p>
+{% else %}
+<form class="record-form" method="post">
+  <label for="student_id">Student</label>
+  <select id="student_id" name="student_id" required>
+    <option value="">Choose a student</option>
+    {% for student in students %}
+    <option value="{{ student.id }}"
+      {% if lesson.student_id|string == student.id|string %}selected{% endif %}>{{ student.name }}</option>
+    {% endfor %}
+  </select>
+
+  <label for="tutor_id">Tutor</label>
+  <select id="tutor_id" name="tutor_id" required>
+    <option value="">Choose a tutor</option>
+    {% for tutor in tutors %}
+    <option value="{{ tutor.id }}"
+      {% if lesson.tutor_id|string == tutor.id|string %}selected{% endif %}>
+      {{ tutor.name }}{% if tutor.subjects %} ({{ tutor.subjects }}){% endif %}
+    </option>
+    {% endfor %}
+  </select>
+
+  <label for="subject">Subject</label>
+  <input id="subject" name="subject" value="{{ lesson.subject or '' }}" required>
+
+  <label for="start_time">Start</label>
+  <input id="start_time" name="start_time" type="datetime-local"
+         value="{{ lesson.start_time or '' }}" required>
+
+  <label for="duration_minutes">Length in minutes</label>
+  <input id="duration_minutes" name="duration_minutes" type="number"
+         min="15" max="240" step="5" value="{{ lesson.duration_minutes or '' }}" required>
+
+  <div class="form-actions">
+    <button type="submit">Schedule lesson</button>
+    <a href="{{ url_for('lessons.list_lessons') }}">Back to lessons</a>
+  </div>
+</form>
+{% endif %}
+{% endblock %}

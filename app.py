@@ -12,6 +12,7 @@ from flask import Flask, jsonify, redirect, url_for
  
 import database
 from customers.routes import bp as customers_bp
+from lessons.routes import bp as lessons_bp
  
  
 def create_app(db_path=None):
@@ -22,10 +23,11 @@ def create_app(db_path=None):
  
     database.init_app(app)
     app.register_blueprint(customers_bp)
+    app.register_blueprint(lessons_bp)
  
     @app.get("/")
     def index():
-        return redirect(url_for("customers.list_students"))
+        return redirect(url_for("lessons.list_lessons"))
  
     @app.get("/health")
     def health():

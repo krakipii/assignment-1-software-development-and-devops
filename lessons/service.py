@@ -259,6 +259,9 @@ def get_lesson(conn, lesson_id):
         raise LessonNotFound(f"Lesson {lesson_id} does not exist.")
     return dict(row)
 
+def student_choices(conn):
+    """Students a lesson can be booked for (id and name), from the customers domain."""
+    return [{"id": s["id"], "name": s["name"]} for s in customers.list_students(conn)]
 
 def list_lessons(conn, status=None, tutor_id=None):
     """Return lessons ordered by start time, including tutor and student names.

@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Lessons{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>Lessons{% if tutor %} with {{ tutor.name }}{% endif %}</h1>
+  <a class="button" href="{{ url_for('lessons.schedule_lesson') }}">Schedule lesson</a>
+</div>
+
+<nav class="tabs" aria-label="Filter lessons by status">
+  <a href="{{ url_for('lessons.list_lessons', tutor_id=tutor.id if tutor else None) }}"
+     {% if not status %}aria-current="page"{% endif %}>All</a>
+  {% for option in statuses %}
+  <a href="{{ url_for('lessons.list_lessons', status=option, tutor_id=tutor.id if tutor else None) }}"
+     {% if status == option %}aria-current="page"{% endif %}>{{ option|capitalize }}</a>
+  {% endfor %}
+  {% if tutor %}<a class="tabs-reset" href="{{ url_for('lessons.list_lessons') }}">Show all tutors</a>{% endif %}
+</nav>
+
+{% if lessons %}
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>When</th>
+        <th>Student</th>
+        <th>Tutor</th>
+        <th>Subject</th>
+        <th>Length</th>
+        <th>Status</th>
+        <th><span class="visually-hidden">Actions</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for lesson in lessons %}
+      <tr>
+        <td>{{ lesson.start_time|lesson_time }}</td>
+        <td>{{ lesson.student_name }}</td>
+        <td>{{ lesson.tutor_name }}</td>
+        <td>{{ lesson.subject }}</td>
+        <td>{{ lesson.duration_minutes }} min</td>
+        <td><span class="status status-{{ lesson.status }}">{{ lesson.status }}</span></td>
+        <td>
+          {% if lesson.status == "scheduled" %}
+          <div class="actions">
+            <form method="post" action="{{ url_for('lessons.change_status', lesson_id=lesson.id) }}">
+              <input type="hidden" name="status" value="completed">
+              <button type="submit" class="link">Complete</button>
+            </form>
+            <form method="post" action="{{ url_for('lessons.change_status', lesson_id=lesson.id) }}"
+                  onsubmit="return confirm('Cancel this lesson?');">
+              <input type="hidden" name="status" value="cancelled">
+              <button type="submit" class="link-danger">Cancel</button>
+            </form>
+          </div>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% elif status %}
+<p class="empty">No {{ status }} lessons.</p>
+{% else %}
+<p class="empty">No lessons yet. Schedule the first one.</p>
+{% endif %}
+{% endblock %}
