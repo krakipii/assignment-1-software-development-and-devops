@@ -1,4 +1,4 @@
-# Assignment 1 — Software Development and DevOps
+# Tutoring Company Manager : Assignment 1 — Software Development and DevOps
 
 A small application for an independent tutoring company. This system helps the company keep track of their customers,
 the scheduled lessons, which tutor is teaching which lesson, and the state of the lessons (scheduled, cancelled, completed)
@@ -50,14 +50,15 @@ pytest
 Run them with a coverage report:
 
 ```bash
-pytest --cov=customers --cov-report=term-missing
+pytest --cov=customers --cov=lessons --cov-report=term-missing
 ```
 
 Coverage is measured on the business logic in each domain's `service.py`.
 The Flask routes only pass requests through to the services, so `.coveragerc`
 leaves them out of the measurement.
 
-Latest result: 23 tests passed, 100% coverage of `customers/service.py`.
+Latest result: 68 tests passed, 100% coverage of `customers/service.py` and
+`lessons/service.py`.
 
 ## Project structure
 

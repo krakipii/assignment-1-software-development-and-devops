@@ -21,3 +21,11 @@ Context: Every lesson belongs to a student, but students belong to Customer Mana
 Decision: lessons.student_id keeps a foreign key to students.id, but it is the only link between the tables of the two domains, and Lesson Management code never queries the students table directly. Instead it uses customers/service.py.
 Alternatives considered: I considered using student_id as a normal integer and checking in the application code whether the student exists. I chose a foreign key instead because SQLite can prevent invalid student references automatically, and I also avoided direct joins to keep Lesson Management independent from the students table structure.
 Consequences: A student cannot be deleted while they still have lessons linked to them, and the application can turn the database error into a clear message. If the domains are separated into different services later, the foreign key will be replaced by a check through the Customer Management API.
+
+## 4. Testing approach: business logic against a real temporary database
+Date: 2026-10-02
+Status: Decided
+Context: The assignment requires at least 70% coverage of the core business logic of both domains. I had to decide what to test, how the tests get a database, and what counts towards the coverage number.
+Decision: I test both service.py files directly with pytest, and each test gets its own new SQLite database in a temporary folder. Coverage only includes the service modules, while .coveragerc excludes routes.py.
+Alternatives considered: I considered using mocks instead of a database, but rejected this because important rules depend on SQLite, such as foreign keys and CHECK constraints. I also considered mainly testing through Flask's test client, but rejected this because those tests depend on the HTML and focus more on Flask than the actual business rules.
+Consequences: The tests cover validation, double bookings, status changes, and delete protection, with 100% coverage for both service modules. The routes and templates are not automatically tested, so I check the pages in the browser after making changes.
