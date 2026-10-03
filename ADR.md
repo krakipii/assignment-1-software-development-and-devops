@@ -29,3 +29,13 @@ Context: The assignment requires at least 70% coverage of the core business logi
 Decision: I test both service.py files directly with pytest, and each test gets its own new SQLite database in a temporary folder. Coverage only includes the service modules, while .coveragerc excludes routes.py.
 Alternatives considered: I considered using mocks instead of a database, but rejected this because important rules depend on SQLite, such as foreign keys and CHECK constraints. I also considered mainly testing through Flask's test client, but rejected this because those tests depend on the HTML and focus more on Flask than the actual business rules.
 Consequences: The tests cover validation, double bookings, status changes, and delete protection, with 100% coverage for both service modules. The routes and templates are not automatically tested, so I check the pages in the browser after making changes.
+
+cat >> ADR.md <<'EOF'
+
+## 5. Not building billing and invoices
+Date: 2026-10-03
+Status: Decided
+Context: The company is paid per lesson and every tutor already has an hourly rate, so generating invoices from completed lessons was an obvious next feature. I had to decide whether it belonged in this version.
+Decision: I did not build billing: there is no invoices or payments table, and the app does not calculate what a guardian owes. The tutor's hourly_rate is stored but not used in any calculation yet.
+Alternatives considered: An invoices table linked to completed lessons, with amounts calculated from the tutor's hourly rate and the lesson's length. Rejected because billing would be a third domain with its own data and rules (payment status, refunds, corrections), beyond the two domains the assignment asks for, and it would take time away from tests and documentation.
+Consequences: The app stays focused on customers and scheduling, which keeps it easier to test and explain. If billing is added later, it can become its own service that reads completed lessons through the lessons domain, the same way lessons read students through the customers domain.
