@@ -9,14 +9,20 @@
 <body>
   <header class="site-header">
     <a class="brand" href="{{ url_for('index') }}">Tutoring Manager</a>
-    <nav>
-      <a href="{{ url_for('lessons.list_lessons') }}"
-         {% if request.path.startswith('/lessons') %}aria-current="page"{% endif %}>Lessons</a>
-      <a href="{{ url_for('customers.list_students') }}"
-         {% if request.path.startswith('/students') %}aria-current="page"{% endif %}>Students</a>
-      <a href="{{ url_for('lessons.list_tutors') }}"
-         {% if request.path.startswith('/tutors') %}aria-current="page"{% endif %}>Tutors</a>
-    </nav>
+    {% if session.staff_id %}
+      <nav>
+        <a href="{{ url_for('lessons.list_lessons') }}"
+           {% if request.path.startswith('/lessons') %}aria-current="page"{% endif %}>Lessons</a>
+        <a href="{{ url_for('customers.list_students') }}"
+           {% if request.path.startswith('/students') %}aria-current="page"{% endif %}>Students</a>
+        <a href="{{ url_for('lessons.list_tutors') }}"
+           {% if request.path.startswith('/tutors') %}aria-current="page"{% endif %}>Tutors</a>
+      </nav>
+      <form class="signed-in" method="post" action="{{ url_for('auth.logout') }}">
+        <span>{{ session.username }}</span>
+        <button type="submit" class="link-light">Log out</button>
+      </form>
+    {% endif %}
   </header>
 
   <main>

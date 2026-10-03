@@ -1,7 +1,6 @@
 /* Tutoring Manager uses an exercise-book style with a white page and red margin.
 
 The background is pale blue, with blue used for clickable elements. */
-
 :root {
   --ink: #1f3a5f;
   --ink-dark: #142840;
@@ -31,6 +30,9 @@ a { color: var(--ink); }
 .site-header nav a:hover,
 .site-header nav a[aria-current] { text-decoration: underline; text-underline-offset: .35em; }
 .brand { font-family: var(--serif); font-size: 1.3rem; font-weight: 700; }
+.signed-in { display: flex; align-items: baseline; gap: .75rem; margin-left: auto; color: #dbe4ef; }
+.link-light { padding: 0; color: #fff; background: none; border: none; text-decoration: underline; }
+.link-light:hover { background: none; }
 
 main {
   max-width: 68rem; margin: 2rem auto; padding: 1.5rem 1.5rem 2rem 2.5rem;

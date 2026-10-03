@@ -24,6 +24,20 @@ python app.py
 The app listens on port 8000. Check that it is running by opening
 http://localhost:8000/health, which returns `{"status": "ok"}`.
 
+## Logging in
+
+Every page except `/health` requires a staff login. When the app starts and
+no staff account exists yet, it creates one called `admin` with a random
+password and prints that password once in the terminal:
+
+```
+Created staff account 'admin' with password: ...
+```
+
+To choose the password yourself, set `ADMIN_PASSWORD` when starting the app,
+for example `ADMIN_PASSWORD=my-password python app.py`. If the account already
+exists, this resets its password.
+
 The database tables are created automatically when the app starts; there is no
 separate setup or migration step.
 
@@ -36,6 +50,8 @@ Everything is configured with environment variables. None of them are required.
 | `PORT`       | `8000`                       | Port the server listens on                |
 | `DATA_DIR`   | `data/` next to `app.py`     | Folder that holds the SQLite file         |
 | `SECRET_KEY` | random value on every start  | Signs session cookies; set a fixed value in production |
+| `ADMIN_USERNAME` | `admin`                  | Username of the staff account created at start |
+| `ADMIN_PASSWORD` | random, printed once     | Password of that account; setting it resets the password |
 
 The SQLite database is always stored at `$DATA_DIR/tutoring.db`.
 
@@ -50,21 +66,22 @@ pytest
 Run them with a coverage report:
 
 ```bash
-pytest --cov=customers --cov=lessons --cov-report=term-missing
+pytest --cov=customers --cov=lessons --cov=auth --cov-report=term-missing
 ```
 
-Coverage is measured on the business logic in each domain's `service.py`.
+Coverage is measured on the business logic in each `service.py`.
 The Flask routes only pass requests through to the services, so `.coveragerc`
 leaves them out of the measurement.
 
-Latest result: 68 tests passed, 100% coverage of `customers/service.py` and
-`lessons/service.py`.
+Latest result: 76 tests passed, 100% coverage of `customers/service.py`,
+`lessons/service.py` and `auth/service.py`.
 
 ## Project structure
 
 ```
 app.py               entry point: creates the Flask app and starts the server
 database.py          SQLite connection handling and schema
+auth/                staff login (protects both domains)
 customers/           Customer Management domain (students, guardians)
 lessons/             Lesson Management domain (tutors, lessons, lesson status)
 templates/, static/  HTML templates and CSS for the web pages
