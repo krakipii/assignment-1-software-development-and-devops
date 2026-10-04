@@ -97,40 +97,7 @@ HTTP request and nothing else in Lesson Management changes (see ADR-2).
 
 ## Database schema
 
-```mermaid
-erDiagram
-    students ||--o{ lessons : "booked for"
-    tutors ||--o{ lessons : "teaches"
-
-    staff {
-        INTEGER id PK
-        TEXT username UK "NOT NULL"
-        TEXT password_hash "NOT NULL"
-    }
-    students {
-        INTEGER id PK
-        TEXT name "NOT NULL"
-        TEXT guardian_name
-        TEXT guardian_email
-        TEXT guardian_phone
-    }
-    tutors {
-        INTEGER id PK
-        TEXT name "NOT NULL"
-        TEXT email
-        TEXT subjects "comma-separated"
-        REAL hourly_rate "NOT NULL, >= 0"
-    }
-    lessons {
-        INTEGER id PK
-        INTEGER tutor_id FK "NOT NULL"
-        INTEGER student_id FK "NOT NULL"
-        TEXT subject "NOT NULL"
-        TEXT start_time "NOT NULL, e.g. 2026-10-05T16:00"
-        INTEGER duration_minutes "NOT NULL, > 0"
-        TEXT status "NOT NULL: scheduled, completed or cancelled"
-    }
-```
+![Database schema](docs/database.png)
 
 `students` belongs to Customer Management; `tutors` and `lessons` belong to
 Lesson Management; `staff` belongs to the login module. `lessons.student_id`
