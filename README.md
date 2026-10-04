@@ -82,39 +82,7 @@ The app is built to be containerised later without changes:
 
 ## Architecture
 
-```mermaid
-flowchart TB
-    browser["Staff member's browser"]
-
-    subgraph process["One process: python app.py"]
-        app["app.py<br/>creates the app, error pages"]
-        auth["auth/<br/>login check before every request"]
-        subgraph customers["Customer Management domain"]
-            croutes["customers/routes.py"]
-            cservice["customers/service.py"]
-        end
-        subgraph lessons["Lesson Management domain"]
-            lroutes["lessons/routes.py"]
-            lservice["lessons/service.py"]
-        end
-        db["database.py<br/>connections, schema"]
-    end
-
-    sqlite[("DATA_DIR/tutoring.db<br/>SQLite")]
-
-    browser -->|HTTP| app
-    app --> auth
-    app --> croutes
-    app --> lroutes
-    app -->|at start| db
-    croutes --> cservice
-    lroutes --> lservice
-    lservice -->|"get_student, list_students"| cservice
-    auth -->|staff| sqlite
-    cservice -->|students| sqlite
-    lservice -->|"tutors, lessons"| sqlite
-    db -->|creates tables| sqlite
-```
+![Architecture diagram](docs/architecture.png)
 
 Each domain has two layers. `routes.py` handles HTTP: it reads the request,
 gets a database connection from `database.py` (`get_db`), passes it to the
