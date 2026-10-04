@@ -47,8 +47,7 @@ def create_app(db_path=None):
     app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
     app.config["ADMIN_USERNAME"] = os.environ.get("ADMIN_USERNAME", "").strip() or "admin"
     app.config["ADMIN_PASSWORD"] = os.environ.get("ADMIN_PASSWORD")
-    # The browser only sends the login cookie with requests that start on this
-    # site, so another website cannot submit forms here as the logged-in user.
+    
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
     database.init_app(app)
