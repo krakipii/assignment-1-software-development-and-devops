@@ -1,0 +1,44 @@
+# Local development stack. Run from the repository root.
+# For now it only starts SQL Server and creates one database and one login per service.
+# The two services and the UI are added in a later commit.
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    platform: linux/amd64
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?set MSSQL_SA_PASSWORD in .env}
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssql-data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q 'SELECT 1' -b -o /dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  db-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    platform: linux/amd64
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?set MSSQL_SA_PASSWORD in .env}
+      CUSTOMERS_DB_PASSWORD: ${CUSTOMERS_DB_PASSWORD:?set CUSTOMERS_DB_PASSWORD in .env}
+      LESSONS_DB_PASSWORD: ${LESSONS_DB_PASSWORD:?set LESSONS_DB_PASSWORD in .env}
+    volumes:
+      - ./db:/db:ro
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - >-
+        /opt/mssql-tools18/bin/sqlcmd -C -b -S db -U sa -P "$$MSSQL_SA_PASSWORD"
+        -i /db/init.sql
+        -v CUSTOMERS_DB_PASSWORD="$$CUSTOMERS_DB_PASSWORD" LESSONS_DB_PASSWORD="$$LESSONS_DB_PASSWORD"
+    restart: "no"
+
+volumes:
+  mssql-data:
