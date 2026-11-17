@@ -22,16 +22,23 @@ ELSE
     ALTER LOGIN lessons_user WITH PASSWORD = N'$(LESSONS_DB_PASSWORD)';
 GO
 
--- Each login becomes a user in its own database only. It gets db_owner there so the
--- service can run its migrations, and it has no user in the other database,
--- so it cannot open it.
+-- Each login becomes a user in its own database only, with the same three roles
+-- as on Azure: db_ddladmin to run migrations, db_datareader and db_datawriter to
+-- use the data. It has no user in the other database, so it cannot open it.
+-- (An earlier version of this script gave db_owner; that is taken away again.)
 USE customers;
 GO
 IF USER_ID(N'customers_user') IS NULL
     CREATE USER customers_user FOR LOGIN customers_user;
 GO
-IF ISNULL(IS_ROLEMEMBER(N'db_owner', N'customers_user'), 0) = 0
-    ALTER ROLE db_owner ADD MEMBER customers_user;
+IF IS_ROLEMEMBER(N'db_owner', N'customers_user') = 1
+    ALTER ROLE db_owner DROP MEMBER customers_user;
+IF ISNULL(IS_ROLEMEMBER(N'db_ddladmin', N'customers_user'), 0) = 0
+    ALTER ROLE db_ddladmin ADD MEMBER customers_user;
+IF ISNULL(IS_ROLEMEMBER(N'db_datareader', N'customers_user'), 0) = 0
+    ALTER ROLE db_datareader ADD MEMBER customers_user;
+IF ISNULL(IS_ROLEMEMBER(N'db_datawriter', N'customers_user'), 0) = 0
+    ALTER ROLE db_datawriter ADD MEMBER customers_user;
 GO
 
 USE lessons;
@@ -39,8 +46,14 @@ GO
 IF USER_ID(N'lessons_user') IS NULL
     CREATE USER lessons_user FOR LOGIN lessons_user;
 GO
-IF ISNULL(IS_ROLEMEMBER(N'db_owner', N'lessons_user'), 0) = 0
-    ALTER ROLE db_owner ADD MEMBER lessons_user;
+IF IS_ROLEMEMBER(N'db_owner', N'lessons_user') = 1
+    ALTER ROLE db_owner DROP MEMBER lessons_user;
+IF ISNULL(IS_ROLEMEMBER(N'db_ddladmin', N'lessons_user'), 0) = 0
+    ALTER ROLE db_ddladmin ADD MEMBER lessons_user;
+IF ISNULL(IS_ROLEMEMBER(N'db_datareader', N'lessons_user'), 0) = 0
+    ALTER ROLE db_datareader ADD MEMBER lessons_user;
+IF ISNULL(IS_ROLEMEMBER(N'db_datawriter', N'lessons_user'), 0) = 0
+    ALTER ROLE db_datawriter ADD MEMBER lessons_user;
 GO
 
 PRINT 'db-init finished: databases customers and lessons, logins customers_user and lessons_user.';
