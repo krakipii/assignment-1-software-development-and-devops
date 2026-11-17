@@ -144,3 +144,6 @@ AI_USAGE.md          log of AI assistance
 
 - [ADR.md](ADR.md) records the five main design decisions and why they were made.
 - [AI_USAGE.md](AI_USAGE.md) logs every meaningful use of AI in this project.
+## Security incidents
+
+- **2026-11-16: local database passwords committed.** Commit d631302, pushed on 2026-11-16, put the three local development passwords (SQL Server `sa`, `customers_user` and `lessons_user`) in `.env.example` instead of the Git-ignored `.env`. They only protected the SQL Server container on my own laptop; no Azure or GitHub credential was involved. On 2026-11-17, within 24 hours, I rotated all three: I deleted and recreated the local database with new passwords in `.env`, and emptied `.env.example` again. The old values remain in the Git history but no longer work anywhere, so I did not rewrite the history.
