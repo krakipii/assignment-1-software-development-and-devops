@@ -1,0 +1,4 @@
+# Coverage of the service's own code; the tests themselves are left out.
+[run]
+source = .
+omit = tests/*
