@@ -1,0 +1,195 @@
+openapi: 3.0.3
+info:
+  title: Customers service
+  version: "1.0"
+  description: >
+    Students and their guardians' contact details, and the staff login of the
+    Tutoring Company Manager. Every endpoint except /health and /auth/login
+    needs the header "Authorization: Bearer <token>", where the token comes
+    from /auth/login. The lessons service calls GET /students and
+    GET /students/{id}.
+servers:
+  - url: http://localhost:8001
+    description: docker compose
+security:
+  - bearerToken: []
+paths:
+  /health:
+    get:
+      summary: Whether this service can read and write its own database
+      security: []
+      responses:
+        "200":
+          description: The database can be read and written
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+        "503":
+          description: The database cannot be used
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+  /auth/login:
+    post:
+      summary: Log in as a staff member and get a token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginRequest" }
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LoginResponse" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /students:
+    get:
+      summary: All students sorted by name, optionally filtered by part of the name
+      parameters:
+        - name: q
+          in: query
+          required: false
+          description: Part of the name to search for (upper and lower case are ignored)
+          schema: { type: string }
+      responses:
+        "200":
+          description: The students
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Student" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      summary: Add a student
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StudentInput" }
+      responses:
+        "201":
+          description: The student was added
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Student" }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /students/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      summary: One student
+      responses:
+        "200":
+          description: The student
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Student" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      summary: Change a student's details
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StudentInput" }
+      responses:
+        "200":
+          description: The changed student
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Student" }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      summary: Delete a student
+      responses:
+        "204":
+          description: The student was deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+components:
+  securitySchemes:
+    bearerToken:
+      type: http
+      scheme: bearer
+      description: The token returned by POST /auth/login, valid for 8 hours
+  responses:
+    BadRequest:
+      description: The data breaks a business rule; the error says which
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: Missing or invalid token, or wrong username or password
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: No student with this id
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+  schemas:
+    Health:
+      type: object
+      required: [status, db, version]
+      properties:
+        status: { type: string, enum: [ok, error] }
+        db: { type: string, enum: [ok, error] }
+        version: { type: string, description: Git commit the image was built from }
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username: { type: string }
+        password: { type: string }
+    LoginResponse:
+      type: object
+      required: [token, username]
+      properties:
+        token: { type: string }
+        username: { type: string }
+    StudentInput:
+      type: object
+      description: At least one of guardian_email and guardian_phone is required.
+      required: [name]
+      properties:
+        name: { type: string, maxLength: 100 }
+        guardian_name: { type: string, maxLength: 100, nullable: true }
+        guardian_email: { type: string, maxLength: 254, nullable: true }
+        guardian_phone: { type: string, maxLength: 20, nullable: true }
+    Student:
+      type: object
+      required: [id, name, guardian_name, guardian_email, guardian_phone]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        guardian_name: { type: string, nullable: true }
+        guardian_email: { type: string, nullable: true }
+        guardian_phone: { type: string, nullable: true }
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }

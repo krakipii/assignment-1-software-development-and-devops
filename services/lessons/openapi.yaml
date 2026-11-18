@@ -1,0 +1,301 @@
+openapi: 3.0.3
+info:
+  title: Lessons service
+  version: "1.0"
+  description: >
+    Tutors, lessons and lesson status of the Tutoring Company Manager. Every
+    endpoint except /health needs the header "Authorization: Bearer <token>",
+    with the token from the customers service's POST /auth/login. Student data
+    comes from the customers service (GET /students, GET /students/{id}), with
+    a timeout of CUSTOMERS_TIMEOUT_S seconds.
+servers:
+  - url: http://localhost:8002
+    description: docker compose
+security:
+  - bearerToken: []
+paths:
+  /health:
+    get:
+      summary: Whether this service can read and write its own database
+      description: Does not depend on the customers service.
+      security: []
+      responses:
+        "200":
+          description: The database can be read and written
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+        "503":
+          description: The database cannot be used
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+  /lessons:
+    get:
+      summary: Lessons by start time, with tutor and student names
+      description: >
+        Student names come from one call to the customers service. If it does
+        not answer, the lessons are still returned, with student_name null,
+        students_available false and a notice.
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: { type: string, enum: [scheduled, completed, cancelled] }
+        - name: tutor_id
+          in: query
+          required: false
+          schema: { type: integer }
+      responses:
+        "200":
+          description: The lessons
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LessonList" }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      summary: Schedule a lesson
+      description: >
+        Checks the student with the customers service. If it does not answer,
+        nothing is scheduled and the answer is 503.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LessonInput" }
+      responses:
+        "201":
+          description: The lesson was scheduled
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Lesson" }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          description: The tutor or the student already has a lesson at that time
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "503":
+          description: The customers service did not answer, so the student could not be checked
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+  /lessons/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    get:
+      summary: One lesson
+      responses:
+        "200":
+          description: The lesson
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Lesson" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /lessons/{id}/status:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    post:
+      summary: Mark a scheduled lesson as completed or cancelled
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [completed, cancelled] }
+      responses:
+        "200":
+          description: The changed lesson
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Lesson" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: The lesson cannot change from its current status to this one
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+  /tutors:
+    get:
+      summary: All tutors sorted by name
+      responses:
+        "200":
+          description: The tutors
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Tutor" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      summary: Add a tutor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TutorInput" }
+      responses:
+        "201":
+          description: The tutor was added
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Tutor" }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /tutors/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    get:
+      summary: One tutor
+      responses:
+        "200":
+          description: The tutor
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Tutor" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      summary: Change a tutor's details
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TutorInput" }
+      responses:
+        "200":
+          description: The changed tutor
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Tutor" }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+components:
+  securitySchemes:
+    bearerToken:
+      type: http
+      scheme: bearer
+      description: The token returned by the customers service's POST /auth/login
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer }
+  responses:
+    BadRequest:
+      description: The data breaks a business rule; the error says which
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: Missing or invalid token
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: No record with this id
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+  schemas:
+    Health:
+      type: object
+      required: [status, db, version]
+      properties:
+        status: { type: string, enum: [ok, error] }
+        db: { type: string, enum: [ok, error] }
+        version: { type: string, description: Git commit the image was built from }
+    TutorInput:
+      type: object
+      required: [name, hourly_rate]
+      properties:
+        name: { type: string, maxLength: 100 }
+        email: { type: string, maxLength: 254, nullable: true }
+        subjects: { type: string, maxLength: 500, nullable: true, example: "Maths, Physics" }
+        hourly_rate: { type: number, minimum: 0, maximum: 1000 }
+    Tutor:
+      type: object
+      required: [id, name, email, subjects, hourly_rate]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        email: { type: string, nullable: true }
+        subjects: { type: string, nullable: true }
+        hourly_rate: { type: number }
+    LessonInput:
+      type: object
+      required: [tutor_id, student_id, subject, start_time, duration_minutes]
+      properties:
+        tutor_id: { type: integer }
+        student_id: { type: integer, description: Id of a student in the customers service }
+        subject: { type: string, maxLength: 100 }
+        start_time: { type: string, example: "2030-10-05T16:00" }
+        duration_minutes: { type: integer, minimum: 15, maximum: 240 }
+    Lesson:
+      type: object
+      required: [id, tutor_id, student_id, subject, start_time, duration_minutes, status]
+      properties:
+        id: { type: integer }
+        tutor_id: { type: integer }
+        student_id: { type: integer }
+        subject: { type: string }
+        start_time: { type: string, example: "2030-10-05T16:00" }
+        duration_minutes: { type: integer }
+        status: { type: string, enum: [scheduled, completed, cancelled] }
+    ListedLesson:
+      allOf:
+        - $ref: "#/components/schemas/Lesson"
+        - type: object
+          required: [tutor_name, student_name]
+          properties:
+            tutor_name: { type: string }
+            student_name:
+              type: string
+              nullable: true
+              description: null if the customers service did not answer or the student was deleted
+    LessonList:
+      type: object
+      required: [lessons, students_available, notice]
+      properties:
+        lessons:
+          type: array
+          items: { $ref: "#/components/schemas/ListedLesson" }
+        students_available:
+          type: boolean
+          description: false if the customers service did not answer
+        notice:
+          type: string
+          nullable: true
+          description: Message for the user when student names are missing
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
