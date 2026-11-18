@@ -1,6 +1,9 @@
-# Local development stack. Run from the repository root.
-# For now it only starts SQL Server and creates one database and one login per service.
-# The two services and the UI are added in a later commit.
+# The whole system on one machine. From the repository root:
+#     cp .env.example .env      (then fill in your own local passwords)
+#     docker compose up --build
+# SQL Server holds one database per service; each service is built from its
+# own Dockerfile and reaches its database with its own login. The UI is added
+# in a later commit.
 services:
   db:
     image: mcr.microsoft.com/mssql/server:2022-latest
@@ -10,7 +13,7 @@ services:
       MSSQL_PID: Developer
       MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?set MSSQL_SA_PASSWORD in .env}
     ports:
-      - "1433:1433"
+      - "1433:1433"   # so the tests on this machine can reach it
     volumes:
       - mssql-data:/var/opt/mssql
     healthcheck:
@@ -20,6 +23,7 @@ services:
       retries: 12
       start_period: 30s
 
+  # One-off: creates the two databases and logins (safe to repeat), then stops.
   db-init:
     image: mcr.microsoft.com/mssql/server:2022-latest
     platform: linux/amd64
@@ -39,6 +43,49 @@ services:
         -i /db/init.sql
         -v CUSTOMERS_DB_PASSWORD="$$CUSTOMERS_DB_PASSWORD" LESSONS_DB_PASSWORD="$$LESSONS_DB_PASSWORD"
     restart: "no"
+
+  customers:
+    build: services/customers
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    environment:
+      PORT: "8000"
+      DATABASE_URL: mssql://customers_user:${CUSTOMERS_DB_PASSWORD}@db:1433/customers
+      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in .env}
+      CORS_ORIGINS: http://localhost:8080
+    ports:
+      - "8001:8000"   # the browser reaches it at http://localhost:8001
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  lessons:
+    build: services/lessons
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+      customers:
+        condition: service_started   # not "healthy": lessons must also work without it
+    environment:
+      PORT: "8000"
+      DATABASE_URL: mssql://lessons_user:${LESSONS_DB_PASSWORD}@db:1433/lessons
+      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
+      CUSTOMERS_URL: http://customers:8000
+      CUSTOMERS_TIMEOUT_S: "3"
+      CORS_ORIGINS: http://localhost:8080
+    ports:
+      - "8002:8000"   # the browser reaches it at http://localhost:8002
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
 
 volumes:
   mssql-data:
