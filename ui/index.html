@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tutoring Manager</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- config.js first: it tells app.js where the two services are. -->
+  <script src="config.js"></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="#/lessons">Tutoring Manager</a>
+    <nav id="nav" hidden>
+      <a href="#/lessons" data-section="lessons">Lessons</a>
+      <a href="#/students" data-section="students">Students</a>
+      <a href="#/tutors" data-section="tutors">Tutors</a>
+    </nav>
+    <div class="signed-in" id="signed-in" hidden>
+      <span id="signed-in-name"></span>
+      <button type="button" class="link-light" id="logout">Log out</button>
+    </div>
+  </header>
+  <main id="app">
+    <p class="loading">Loading…</p>
+  </main>
+  <noscript>This page needs JavaScript.</noscript>
+</body>
+</html>
