@@ -1,0 +1,94 @@
+# CI: lint, test and build both services on every push and every pull request.
+# The CD workflow (deploy to Azure) will call this workflow first, so nothing
+# is deployed unless all of it passes.
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Lint and test ${{ matrix.service }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false # one failing service does not hide the other one's result
+      matrix:
+        service: [customers, lessons]
+    defaults:
+      run:
+        working-directory: services/${{ matrix.service }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12.9" # the same Python as the Docker images
+          cache: pip
+          cache-dependency-path: services/${{ matrix.service }}/requirements*.txt
+
+      # The tests need a real SQL Server, never Azure SQL. This one lives only
+      # for this run; its sa password is random and masked in the logs, so no
+      # password is written in this file or stored as a secret.
+      - name: Start a throwaway SQL Server container
+        run: |
+          password="Ci$(openssl rand -hex 12)Aa1"
+          echo "::add-mask::$password"
+          echo "MSSQL_SA_PASSWORD=$password" >> "$GITHUB_ENV"
+          docker run -d --name mssql -p 1433:1433 \
+            -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD="$password" \
+            mcr.microsoft.com/mssql/server:2022-latest
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Wait until SQL Server accepts logins
+        run: |
+          for attempt in $(seq 1 30); do
+            if docker exec mssql /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa \
+                 -P "$MSSQL_SA_PASSWORD" -Q "SELECT 1" -b -o /dev/null; then
+              exit 0
+            fi
+            sleep 5
+          done
+          docker logs mssql
+          exit 1
+
+      - name: Test, failing below 70% coverage
+        run: pytest --cov --cov-report=term-missing --cov-fail-under=70
+
+  validate:
+    name: Validate the OpenAPI documents
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12.9"
+      - name: Install the validator
+        run: pip install openapi-spec-validator==0.9.0
+      - name: Check both documents against the OpenAPI specification
+        run: openapi-spec-validator services/customers/openapi.yaml services/lessons/openapi.yaml
+
+  build:
+    name: Build the ${{ matrix.service }} image
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [customers, lessons]
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build the image (a failed build fails the pipeline)
+        run: >-
+          docker build
+          --build-arg GIT_SHA=${{ github.sha }}
+          --tag ${{ matrix.service }}:${{ github.sha }}
+          services/${{ matrix.service }}
