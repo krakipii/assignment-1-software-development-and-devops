@@ -59,8 +59,12 @@ async function call(service, method, path, body) {
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
-    // Network error: the service is down, asleep or unreachable.
-    throw new ApiError(`The ${service} service is not reachable right now. Try again in a minute.`, 0);
+    // Network error. On Azure this is usually a cold start: after a quiet
+    // period the container and its database need up to a minute to wake up,
+    // and Azure's "starting" answer has no CORS header, so the browser only
+    // sees a failed request.
+    throw new ApiError(
+      `The ${service} service is not reachable right now. It may be starting up after a quiet period: try again in a minute.`, 0);
   }
   if (response.status === 401 && path !== "/auth/login") {
     // The token expired or is wrong: back to the login page. The promise never
@@ -74,6 +78,9 @@ async function call(service, method, path, body) {
   let data = null;
   try { data = await response.json(); } catch { /* not JSON */ }
   if (!response.ok) {
+    if (!data && [502, 503, 504].includes(response.status)) {
+      throw new ApiError(`The ${service} service is starting up. Try again in about a minute.`, response.status);
+    }
     const message = (data && data.error) || `The ${service} service answered with error ${response.status}.`;
     throw new ApiError(message, response.status);
   }
@@ -140,6 +147,9 @@ function formatStart(text) {
 // ---------- login ----------
 
 function renderLogin() {
+  // Wake both services while the user types: on Azure they sleep when unused,
+  // and starting takes a while. The answers are not needed, so errors are ignored.
+  for (const url of Object.values(SERVICES)) fetch(`${url}/health`).catch(() => {});
   const message = flashMessage();
   const form = el("form", { class: "record-form login" },
     ...field("Username", "username", { autocomplete: "username", required: true }),
