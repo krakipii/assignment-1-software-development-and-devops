@@ -39,6 +39,7 @@ jobs:
       PREFIX: ${{ vars.PREFIX }}
       RG: ${{ vars.RESOURCE_GROUP }}
       UI_STORAGE: ${{ vars.UI_STORAGE }}
+      SQL_SERVER: ${{ vars.SQL_SERVER }}
       SHA: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v5
@@ -54,7 +55,7 @@ jobs:
         run: |
           owner="${GITHUB_REPOSITORY_OWNER,,}"
           echo "REGISTRY=ghcr.io/$owner" >> "$GITHUB_ENV"
-          echo "SQL_HOST=$PREFIX-sql.database.windows.net" >> "$GITHUB_ENV"
+          echo "SQL_HOST=$SQL_SERVER.database.windows.net" >> "$GITHUB_ENV"
           for service in customers lessons; do
             fqdn=$(az containerapp show -n "$PREFIX-$service" -g "$RG" \
                      --query properties.configuration.ingress.fqdn -o tsv)
