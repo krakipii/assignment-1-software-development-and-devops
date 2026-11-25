@@ -1,0 +1,129 @@
+# CD: every push to main is tested and built by CI, then deployed to Azure.
+#   1. ci.yml runs (lint, tests, OpenAPI check) and pushes both images to GHCR,
+#      tagged with the commit SHA. If anything fails, nothing is deployed.
+#   2. The deploy job signs in to Azure as the managed identity <prefix>-github
+#      (OIDC: no Azure password is stored anywhere), points both Container Apps
+#      at the new images, writes ui/config.js, uploads the UI and waits until
+#      both services answer /health with this commit's SHA.
+# Passwords come from GitHub secrets, names from GitHub variables. Nothing
+# secret is written in this file.
+name: CD
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # to re-run a deploy by hand from the Actions tab
+
+concurrency:
+  group: deploy-azure
+  cancel-in-progress: false # never stop a deploy half-way
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+      packages: write
+
+  deploy:
+    name: Deploy to Azure
+    needs: ci
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write # lets azure/login sign in with OIDC
+    env:
+      PREFIX: ${{ vars.PREFIX }}
+      RG: ${{ vars.RESOURCE_GROUP }}
+      UI_STORAGE: ${{ vars.UI_STORAGE }}
+      SQL_SERVER: ${{ vars.SQL_SERVER }}
+      SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Sign in to Azure as the pipeline's managed identity
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Look up the addresses
+        run: |
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          echo "REGISTRY=ghcr.io/$owner" >> "$GITHUB_ENV"
+          echo "SQL_HOST=$SQL_SERVER.database.windows.net" >> "$GITHUB_ENV"
+          for service in customers lessons; do
+            fqdn=$(az containerapp show -n "$PREFIX-$service" -g "$RG" \
+                     --query properties.configuration.ingress.fqdn -o tsv)
+            echo "${service^^}_URL=https://$fqdn" >> "$GITHUB_ENV"
+          done
+          ui=$(az storage account show -n "$UI_STORAGE" -g "$RG" --query primaryEndpoints.web -o tsv)
+          echo "UI_ORIGIN=${ui%/}" >> "$GITHUB_ENV"   # an origin has no trailing slash
+
+      - name: Deploy the customers service
+        env:
+          DB_PASSWORD: ${{ secrets.CUSTOMERS_DB_PASSWORD }}
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+        run: |
+          az containerapp secret set -n "$PREFIX-customers" -g "$RG" --secrets \
+            "database-url=mssql://customers_user:$DB_PASSWORD@$SQL_HOST:1433/$PREFIX-customers-db?encrypt=require" \
+            "auth-secret=$AUTH_SECRET" \
+            "admin-password=$ADMIN_PASSWORD" > /dev/null
+          az containerapp update -n "$PREFIX-customers" -g "$RG" \
+            --image "$REGISTRY/tutoring-customers:$SHA" \
+            --set-env-vars PORT=8000 DATABASE_URL=secretref:database-url \
+              AUTH_SECRET=secretref:auth-secret ADMIN_PASSWORD=secretref:admin-password \
+              CORS_ORIGINS="$UI_ORIGIN" > /dev/null
+
+      - name: Deploy the lessons service
+        env:
+          DB_PASSWORD: ${{ secrets.LESSONS_DB_PASSWORD }}
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+        run: |
+          az containerapp secret set -n "$PREFIX-lessons" -g "$RG" --secrets \
+            "database-url=mssql://lessons_user:$DB_PASSWORD@$SQL_HOST:1433/$PREFIX-lessons-db?encrypt=require" \
+            "auth-secret=$AUTH_SECRET" > /dev/null
+          # CUSTOMERS_TIMEOUT_S is longer than locally: a sleeping customers
+          # container needs a few seconds to start.
+          az containerapp update -n "$PREFIX-lessons" -g "$RG" \
+            --image "$REGISTRY/tutoring-lessons:$SHA" \
+            --set-env-vars PORT=8000 DATABASE_URL=secretref:database-url \
+              AUTH_SECRET=secretref:auth-secret CUSTOMERS_URL="$CUSTOMERS_URL" \
+              CUSTOMERS_TIMEOUT_S=10 CORS_ORIGINS="$UI_ORIGIN" > /dev/null
+
+      - name: Publish the UI with this deploy's addresses
+        run: |
+          cat > ui/config.js <<CONFIG
+          // Written by the CD workflow for commit $SHA.
+          window.APP_CONFIG = {
+            customersUrl: "$CUSTOMERS_URL",
+            lessonsUrl: "$LESSONS_URL",
+          };
+          CONFIG
+          az storage blob upload-batch --account-name "$UI_STORAGE" --auth-mode key \
+            --destination '$web' --source ui --overwrite --only-show-errors > /dev/null
+          echo "UI published at $UI_ORIGIN"
+
+      # A paused database can take about a minute to resume, so wait up to
+      # 6 minutes per service. The run only passes once each service answers
+      # 200 and reports this commit's SHA, so the new revision is really live.
+      - name: Wait for both services to be healthy on this commit
+        run: |
+          for url in "$CUSTOMERS_URL" "$LESSONS_URL"; do
+            for attempt in $(seq 1 36); do
+              body=$(curl -fsS --max-time 30 "$url/health" || true)
+              if echo "$body" | grep -q "\"version\":\"$SHA\""; then
+                echo "$url is healthy: $body"
+                continue 2
+              fi
+              echo "Attempt $attempt: $url not ready yet (${body:-no answer})"
+              sleep 10
+            done
+            echo "::error::$url never became healthy on $SHA"
+            exit 1
+          done

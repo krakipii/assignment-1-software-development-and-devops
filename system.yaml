@@ -1,0 +1,100 @@
+# yaml-language-server: $schema=./system.schema.json
+# The whole system in one file: every service, what it reads from the
+# environment, what it calls and where it runs on Azure. CI checks this file
+# against system.schema.json, and each service's tests check it against the code.
+student: krakipi.ieu2024
+prefix: krakipi-ieu2024
+public_url: https://krakipiieu2024ui.z1.web.core.windows.net/
+
+ui:
+  path: ui/
+  storage_account: krakipiieu2024ui
+  calls: [customers, lessons]
+
+azure:
+  resource_group: rg-krakipi-ieu2024
+  container_apps_environment: krakipi-ieu2024-env
+  sql_server: krakipi-ieu2024-sqlat
+  registry: ghcr.io/krakipii
+
+services:
+  customers:
+    description: Customer Management - students and their guardians' contact details, plus the staff login that hands out the tokens both services accept.
+    path: services/customers
+    openapi: services/customers/openapi.yaml
+    port_default: 8000
+    health: /health
+    migrations: services/customers/migrations
+    env:
+      PORT:
+        description: Port the service listens on.
+        default: 8000
+      DATABASE_URL:
+        description: mssql://user:password@host:1433/database, with ?encrypt=require on Azure.
+        secret: true
+      AUTH_SECRET:
+        description: Signs the login tokens; the lessons service checks them with the same value.
+        secret: true
+      ADMIN_USERNAME:
+        description: Staff account created or updated at start.
+        default: admin
+      ADMIN_PASSWORD:
+        description: Password of that staff account.
+        secret: true
+      CORS_ORIGINS:
+        description: Comma-separated origins allowed to call the API from a browser; on Azure the UI's static website.
+        default: http://localhost:8080
+      GIT_SHA:
+        description: Commit the image was built from, reported by /health; set as a build argument.
+        default: dev
+    azure:
+      container_app: krakipi-ieu2024-customers
+      sql_database: krakipi-ieu2024-customers-db
+
+  lessons:
+    description: Lesson Management - tutors, lessons, lesson status and the scheduling rules; reads student data from the customers service.
+    path: services/lessons
+    openapi: services/lessons/openapi.yaml
+    port_default: 8000
+    health: /health
+    migrations: services/lessons/migrations
+    env:
+      PORT:
+        description: Port the service listens on.
+        default: 8000
+      DATABASE_URL:
+        description: mssql://user:password@host:1433/database, with ?encrypt=require on Azure.
+        secret: true
+      AUTH_SECRET:
+        description: Checks the login tokens signed by the customers service; must be the same value.
+        secret: true
+      CUSTOMERS_URL:
+        description: Base URL of the customers service.
+        default: http://customers:8000
+      CUSTOMERS_TIMEOUT_S:
+        description: Seconds to wait for the customers service; the CD workflow sets 10 on Azure for cold starts.
+        default: 3
+      CORS_ORIGINS:
+        description: Comma-separated origins allowed to call the API from a browser; on Azure the UI's static website.
+        default: http://localhost:8080
+      GIT_SHA:
+        description: Commit the image was built from, reported by /health; set as a build argument.
+        default: dev
+    calls:
+      - service: customers
+        url_env: CUSTOMERS_URL
+        endpoints:
+          - GET /students/{id}
+          - GET /students
+        # 3 s by default, 10 s on Azure (set by the CD workflow).
+        timeout_s: 10
+        on_failure: >-
+          Scheduling a lesson fails by design: nothing is saved and the user gets
+          503 "The customers service is not responding, so the student cannot be
+          checked. The lesson was not scheduled. Try again in a minute." The lesson
+          list degrades: the lessons are still shown, with "Name unavailable"
+          instead of student names and a notice that the customers service is not
+          responding (students_available false).
+    azure:
+      container_app: krakipi-ieu2024-lessons
+      sql_database: krakipi-ieu2024-lessons-db
