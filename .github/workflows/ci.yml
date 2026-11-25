@@ -68,15 +68,17 @@ jobs:
         run: pytest --cov --cov-report=term-missing --cov-fail-under=70
 
   validate:
-    name: Validate the OpenAPI documents
+    name: Validate system.yaml and the OpenAPI documents
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12.9"
-      - name: Install the validator
-        run: pip install openapi-spec-validator==0.9.0
+      - name: Install the validators
+        run: pip install check-jsonschema==0.39.0 openapi-spec-validator==0.9.0
+      - name: Check system.yaml against the provided system.schema.json
+        run: check-jsonschema --schemafile system.schema.json system.yaml
       - name: Check both documents against the OpenAPI specification
         run: openapi-spec-validator services/customers/openapi.yaml services/lessons/openapi.yaml
 
