@@ -13,7 +13,7 @@ MAX_NAME_LENGTH = 100
 MAX_EMAIL_LENGTH = 254
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 PHONE_PATTERN = re.compile(r"^\+?[0-9 ()-]{7,20}$")
-STUDENT_COLUMNS = "id, name, guardian_name, guardian_email, guardian_phone"
+STUDENT_COLUMNS = "id, name, guardian_name, guardian_email, guardian_phone, archived"
 
 
 class CustomerError(Exception):
@@ -97,25 +97,36 @@ def get_student(conn, student_id):
     row = cursor.fetchone()
     if row is None:
         raise StudentNotFound(f"Student {student_id} does not exist.")
+    return _student_row(row)
+
+
+def _student_row(row):
+    """archived is a BIT in SQL Server; give it back as True or False."""
+    row["archived"] = bool(row["archived"])
     return row
 
 
-def list_students(conn, search=None):
-    """Return all students sorted by name, optionally filtered by part of the name.
+def list_students(conn, search=None, include_archived=False):
+    """Return students sorted by name, optionally filtered by part of the name.
 
+    Archived students are left out unless include_archived is True: the lessons
+    service asks for them too, to show the names on their past lessons.
     The database's default collation ignores case, so 'ana' sorts next to 'Ana'
     and the search 'hox' finds 'Hoxha'.
     """
     search = _clean(search)
+    conditions, params = [], []
+    if not include_archived:
+        conditions.append("archived = 0")
+    if search is not None:
+        conditions.append("name LIKE %s")
+        params.append(f"%{search}%")
+    where = f" WHERE {' AND '.join(conditions)}" if conditions else ""
     cursor = conn.cursor(as_dict=True)
-    if search is None:
-        cursor.execute(f"SELECT {STUDENT_COLUMNS} FROM students ORDER BY name, id")
-    else:
-        cursor.execute(
-            f"SELECT {STUDENT_COLUMNS} FROM students WHERE name LIKE %s ORDER BY name, id",
-            (f"%{search}%",),
-        )
-    return cursor.fetchall()
+    cursor.execute(
+        f"SELECT {STUDENT_COLUMNS} FROM students{where} ORDER BY name, id", tuple(params)
+    )
+    return [_student_row(row) for row in cursor.fetchall()]
 
 
 def update_student(conn, student_id, data):
@@ -135,15 +146,17 @@ def update_student(conn, student_id, data):
         raise StudentNotFound(f"Student {student_id} does not exist.")
 
 
-def delete_student(conn, student_id):
-    """Delete a student.
+def archive_student(conn, student_id):
+    """Archive a student instead of deleting them (migration 002, ADR-7).
 
-    In the monolith a foreign key refused this while the student had lessons.
-    Lessons now live in another database, so that check is gone (see ADR-7).
+    In the monolith a foreign key stopped a student with lessons from being
+    deleted. Lessons now live in another database, so the student's row is
+    kept and only marked as archived: their lessons keep pointing at a student
+    who exists, and the lessons service can still show the name.
     """
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM students WHERE id = %s", (student_id,))
-    deleted = cursor.rowcount
+    cursor.execute("UPDATE students SET archived = 1 WHERE id = %s", (student_id,))
+    archived = cursor.rowcount
     conn.commit()
-    if deleted == 0:
+    if archived == 0:
         raise StudentNotFound(f"Student {student_id} does not exist.")

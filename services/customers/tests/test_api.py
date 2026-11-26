@@ -83,6 +83,7 @@ def test_create_read_update_and_delete_a_student(client, headers):
     assert created.status_code == 201
     student = created.get_json()
     assert student["name"] == "Ana Hoxha"
+    assert student["archived"] is False
 
     url = f"/students/{student['id']}"
     assert client.get(url, headers=headers).get_json() == student
@@ -92,8 +93,12 @@ def test_create_read_update_and_delete_a_student(client, headers):
     assert changed.status_code == 200
     assert changed.get_json()["name"] == "Ana H."
 
+    # DELETE archives (migration 002): the student stays, marked as archived.
     assert client.delete(url, headers=headers).status_code == 204
-    assert client.get(url, headers=headers).status_code == 404
+    assert client.get(url, headers=headers).get_json()["archived"] is True
+    assert client.get("/students", headers=headers).get_json() == []
+    with_archived = client.get("/students?include_archived=true", headers=headers).get_json()
+    assert [s["id"] for s in with_archived] == [student["id"]]
 
 
 def test_list_and_search_students(client, headers):

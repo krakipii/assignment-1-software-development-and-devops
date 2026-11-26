@@ -48,13 +48,18 @@ paths:
           $ref: "#/components/responses/Unauthorized"
   /students:
     get:
-      summary: All students sorted by name, optionally filtered by part of the name
+      summary: Students sorted by name, without archived ones unless asked, optionally filtered by part of the name
       parameters:
         - name: q
           in: query
           required: false
           description: Part of the name to search for (upper and lower case are ignored)
           schema: { type: string }
+        - name: include_archived
+          in: query
+          required: false
+          description: "true to include archived students (the lessons service uses this for names)"
+          schema: { type: string, enum: ["true", "false"] }
       responses:
         "200":
           description: The students
@@ -120,10 +125,14 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
     delete:
-      summary: Delete a student
+      summary: Archive a student
+      description: >
+        The student is not removed but marked as archived (migration 002), so
+        lessons in the lessons service never point at a student who no longer
+        exists. Archived students are left out of GET /students.
       responses:
         "204":
-          description: The student was deleted
+          description: The student was archived
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
@@ -181,13 +190,14 @@ components:
         guardian_phone: { type: string, maxLength: 20, nullable: true }
     Student:
       type: object
-      required: [id, name, guardian_name, guardian_email, guardian_phone]
+      required: [id, name, guardian_name, guardian_email, guardian_phone, archived]
       properties:
         id: { type: integer }
         name: { type: string }
         guardian_name: { type: string, nullable: true }
         guardian_email: { type: string, nullable: true }
         guardian_phone: { type: string, nullable: true }
+        archived: { type: boolean, description: True once the student was archived }
     Error:
       type: object
       required: [error]

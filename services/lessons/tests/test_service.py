@@ -167,6 +167,20 @@ def test_long_subject_for_a_tutor_without_subjects_is_rejected(conn, students):
         service.schedule_lesson(conn, students, data)
 
 
+def test_an_archived_student_cannot_get_new_lessons(conn, students):
+    data = lesson_data(make_tutor(conn), students.add("Ana", archived=True))
+    with pytest.raises(service.ValidationError, match="Ana is archived"):
+        service.schedule_lesson(conn, students, data)
+    assert listed(conn, students) == []
+
+
+def test_lessons_of_an_archived_student_still_show_the_name(conn, students):
+    student_id = students.add("Ana")
+    service.schedule_lesson(conn, students, lesson_data(make_tutor(conn), student_id))
+    students.students[student_id]["archived"] = True
+    assert listed(conn, students)[0]["student_name"] == "Ana"
+
+
 def test_invalid_input_is_reported_without_calling_the_customers_service(conn, students):
     data = lesson_data(make_tutor(conn), students.add(), duration_minutes="5")
     with pytest.raises(service.ValidationError):

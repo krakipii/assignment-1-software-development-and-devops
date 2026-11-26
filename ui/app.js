@@ -355,7 +355,7 @@ async function renderStudents(query) {
         el("td", {}, s.guardian_phone || ""),
         el("td", {}, el("div", { class: "actions" },
           el("a", { href: `#/students/${s.id}` }, "Edit"),
-          el("button", { type: "button", class: "link-danger", onclick: () => deleteStudent(s) }, "Delete"))),
+          el("button", { type: "button", class: "link-danger", onclick: () => archiveStudent(s) }, "Archive"))),
       )))));
   } else if (search) {
     content = el("p", { class: "empty" }, `No students match "${search}".`);
@@ -365,11 +365,13 @@ async function renderStudents(query) {
   show(head, message, searchForm, content);
 }
 
-async function deleteStudent(student) {
-  if (!window.confirm(`Delete ${student.name}?`)) return;
+// Students are archived, not deleted (migration 002): their past lessons keep
+// a real student, and the student disappears from this list and the booking form.
+async function archiveStudent(student) {
+  if (!window.confirm(`Archive ${student.name}? Their past lessons are kept.`)) return;
   try {
     await call("customers", "DELETE", `/students/${student.id}`);
-    flash = { kind: "success", text: `${student.name} was deleted.` };
+    flash = { kind: "success", text: `${student.name} was archived.` };
   } catch (error) {
     flash = { kind: "error", text: error.message };
   }

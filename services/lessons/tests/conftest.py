@@ -119,9 +119,9 @@ class FakeStudents:
         self.down = False
         self.calls = []
 
-    def add(self, name="Ana Hoxha"):
+    def add(self, name="Ana Hoxha", archived=False):
         student_id = len(self.students) + 1
-        self.students[student_id] = {"id": student_id, "name": name}
+        self.students[student_id] = {"id": student_id, "name": name, "archived": archived}
         return student_id
 
     def get_student(self, student_id):
@@ -157,16 +157,19 @@ class StubCustomersService:
         self.delay = 0           # seconds to wait before answering (to test the timeout)
         self.status = None       # answer every request with this status instead
         self.auth_headers = []   # the Authorization header of every request received
+        self.paths = []          # the path, with query, of every request received
         stub = self
 
         class Handler(BaseHTTPRequestHandler):
             def do_GET(self):
                 stub.auth_headers.append(self.headers.get("Authorization"))
                 time.sleep(stub.delay)
-                match = re.fullmatch(r"/students/(\d+)", self.path)
+                stub.paths.append(self.path)
+                path = self.path.split("?")[0]
+                match = re.fullmatch(r"/students/(\d+)", path)
                 if stub.status is not None:
                     self._send(stub.status, {"error": "stub error"})
-                elif self.path == "/students":
+                elif path == "/students":
                     self._send(200, list(stub.students.values()))
                 elif match and int(match.group(1)) in stub.students:
                     self._send(200, stub.students[int(match.group(1))])
@@ -193,7 +196,8 @@ class StubCustomersService:
         student_id = len(self.students) + 1
         self.students[student_id] = {
             "id": student_id, "name": name, "guardian_name": None,
-            "guardian_email": None, "guardian_phone": "+355 69 123 4567", **fields,
+            "guardian_email": None, "guardian_phone": "+355 69 123 4567", "archived": False,
+            **fields,
         }
         return student_id
 
