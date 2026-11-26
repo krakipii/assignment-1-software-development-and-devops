@@ -41,15 +41,37 @@ def test_migration_files_are_numbered_sql_files_in_order(tmp_path):
 def test_first_start_applies_everything_and_second_start_nothing(empty_database_url):
     conn = db.connect(empty_database_url, attempts=1)
     try:
-        assert migrate.apply_migrations(conn) == ["001_init.sql"]
+        assert migrate.apply_migrations(conn) == ["001_init.sql", "002_archive_students.sql"]
         assert migrate.apply_migrations(conn) == []
-        assert scalar(conn, "SELECT COUNT(*) FROM schema_migrations") == 1
+        assert scalar(conn, "SELECT COUNT(*) FROM schema_migrations") == 2
+    finally:
+        conn.close()
+
+
+def test_migration_002_keeps_every_existing_student(empty_database_url, tmp_path):
+    """Like the Azure deploy: 001 first, data added, then 002 on the same database."""
+    folder = copy_migrations(tmp_path)
+    migration_002 = (folder / "002_archive_students.sql").read_text()
+    (folder / "002_archive_students.sql").unlink()
+    conn = db.connect(empty_database_url, attempts=1)
+    try:
+        assert migrate.apply_migrations(conn, folder) == ["001_init.sql"]
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO students (name, guardian_phone) VALUES (N'Ana', N'0691234567')")
+        cursor.execute("INSERT INTO students (name, guardian_phone) VALUES (N'Bob', N'0691234568')")
+        conn.commit()
+
+        (folder / "002_archive_students.sql").write_text(migration_002)
+        assert migrate.apply_migrations(conn, folder) == ["002_archive_students.sql"]
+        cursor.execute("SELECT name, archived FROM students ORDER BY name")
+        assert cursor.fetchall() == [("Ana", False), ("Bob", False)]
     finally:
         conn.close()
 
 
 def test_a_migration_changes_a_table_and_keeps_its_rows(empty_database_url, tmp_path):
     folder = copy_migrations(tmp_path)
+    (folder / "002_archive_students.sql").unlink()  # this test adds its own 002
     conn = db.connect(empty_database_url, attempts=1)
     try:
         migrate.apply_migrations(conn, folder)

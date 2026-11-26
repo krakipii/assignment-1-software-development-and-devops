@@ -127,15 +127,33 @@ def test_update_student_that_does_not_exist(conn):
         service.update_student(conn, 999999, valid_student())
 
 
-# ---------- delete ----------
+# ---------- archive (migration 002) ----------
 
-def test_delete_student_removes_them(conn):
+def test_new_students_are_not_archived(conn):
     student_id = service.create_student(conn, valid_student())
-    service.delete_student(conn, student_id)
-    with pytest.raises(service.StudentNotFound):
-        service.get_student(conn, student_id)
+    assert service.get_student(conn, student_id)["archived"] is False
 
 
-def test_delete_student_that_does_not_exist(conn):
+def test_archiving_keeps_the_student_but_hides_them_from_the_list(conn):
+    student_id = service.create_student(conn, valid_student(name="Ana"))
+    service.create_student(conn, valid_student(name="Dritan"))
+    service.archive_student(conn, student_id)
+    # Still there, so lessons that point at this student stay valid.
+    student = service.get_student(conn, student_id)
+    assert student["name"] == "Ana"
+    assert student["archived"] is True
+    assert [s["name"] for s in service.list_students(conn)] == ["Dritan"]
+    assert [s["name"] for s in service.list_students(conn, search="ana")] == []
+
+
+def test_list_with_archived_students_includes_them(conn):
+    student_id = service.create_student(conn, valid_student(name="Ana"))
+    service.create_student(conn, valid_student(name="Dritan"))
+    service.archive_student(conn, student_id)
+    everyone = service.list_students(conn, include_archived=True)
+    assert [(s["name"], s["archived"]) for s in everyone] == [("Ana", True), ("Dritan", False)]
+
+
+def test_archive_student_that_does_not_exist(conn):
     with pytest.raises(service.StudentNotFound):
-        service.delete_student(conn, 999999)
+        service.archive_student(conn, 999999)

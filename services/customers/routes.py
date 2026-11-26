@@ -46,7 +46,8 @@ def login():
 
 @bp.get("/students")
 def list_students():
-    return jsonify(service.list_students(get_db(), request.args.get("q")))
+    include_archived = request.args.get("include_archived") == "true"
+    return jsonify(service.list_students(get_db(), request.args.get("q"), include_archived))
 
 
 @bp.post("/students")
@@ -80,9 +81,10 @@ def update_student(student_id):
 
 
 @bp.delete("/students/<int:student_id>")
-def delete_student(student_id):
+def archive_student(student_id):
+    """DELETE archives the student (migration 002): the row and its lessons stay."""
     try:
-        service.delete_student(get_db(), student_id)
+        service.archive_student(get_db(), student_id)
     except service.StudentNotFound as error:
         return jsonify(error=str(error)), 404
     return "", 204

@@ -3,7 +3,7 @@
 These two calls replace the direct calls to customers/service.py of the
 monolith (ADR-2, ADR-6):
     GET /students/{id}   replaces get_student
-    GET /students        replaces list_students
+    GET /students?include_archived=true   replaces list_students
 
 Every call has a timeout. If the customers service does not answer in time,
 is down, or answers with an error, the call raises CustomersUnavailable, and
@@ -55,5 +55,9 @@ class CustomersClient:
         return self._get(f"/students/{int(student_id)}")
 
     def list_students(self):
-        """All students as a list of dicts. Raises CustomersUnavailable."""
-        return self._get("/students")
+        """All students, archived ones included, as a list of dicts.
+
+        Archived students are asked for too, so past lessons of a student who
+        was archived still show the name. Raises CustomersUnavailable.
+        """
+        return self._get("/students?include_archived=true")

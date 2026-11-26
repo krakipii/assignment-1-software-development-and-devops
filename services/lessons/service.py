@@ -225,9 +225,12 @@ def validate_lesson(conn, students, data):
     # Across the seam: the student must exist in the customers service.
     # CustomersUnavailable is not caught here: the route turns it into a 503.
     try:
-        students.get_student(student_id)
+        student = students.get_student(student_id)
     except StudentNotFound:
         raise ValidationError("Choose an existing student.") from None
+    # Archived students keep their past lessons but get no new ones (migration 002).
+    if student.get("archived"):
+        raise ValidationError(f"{student['name']} is archived and cannot get new lessons.")
 
     return {
         "tutor_id": tutor_id,
